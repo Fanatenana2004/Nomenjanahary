@@ -1,0 +1,64 @@
+def generate_truth_table(variables, function):
+    truth_table = {}
+    for i in range(2**len(variables)):
+        values = {}
+        for j, var in enumerate(variables):
+            values[var] = (i >> (len(variables)-1-j)) & 1
+        truth_table[tuple(values[var] for var in variables)] = eval(function, values)
+    return truth_table
+
+def generate_karnaugh_map(variables, truth_table):
+    karnaugh_map = [[None for _ in range(2**(len(variables)//2))] for _ in range(2**(len(variables)//2))]
+    for y in range(2**(len(variables)//2)):
+        for x in range(2**(len(variables)//2)):
+            input_values = []
+            for j, var in enumerate(variables):
+                if var in variables[:len(variables)//2]:
+                    input_values.append((x >> (len(variables)//2-1-j)) & 1)
+                else:
+                    input_values.append((y >> (len(variables)-1-j)) & 1)
+            karnaugh_map[y][x] = truth_table[tuple(input_values)]
+    return karnaugh_map
+
+def get_karnaugh_groups(carte_karnaugh):
+    groups = []
+    for y, row in enumerate(carte_karnaugh):
+        for x, val in enumerate(row):
+            if val == '1':
+                group = [(x, y)]
+                carte_karnaugh[y][x] = 'X'
+                queue = [(x, y)]
+                while queue:
+                    px, py = queue.pop(0)
+                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        nx, ny = px + dx, py + dy
+                        if 0 <= nx < len(carte_karnaugh[0]) and 0 <= ny < len(carte_karnaugh) and carte_karnaugh[ny][nx] == '1':
+                            group.append((nx, ny))
+                            carte_karnaugh[ny][nx] = 'X'
+                            queue.append((nx, ny))
+                groups.append(group)
+    return groups
+
+def minimize_karnaugh(variables, function):
+    truth_table = generate_truth_table(variables, function)
+    carte_karnaugh = generate_karnaugh_map(variables, truth_table)
+    groups = get_karnaugh_groups(carte_karnaugh)
+    expressions_minimales = []
+    for group in groups:
+        variables_group = []
+        for x, y in group:
+            var_x = bin(x)[2:].zfill(len(variables)//2)
+            var_y = bin(y)[2:].zfill(len(variables)//2)
+            variables_group.extend([variables[i] if bit == '1' else '~'+variables[i] for i, bit in enumerate(var_x + var_y)])
+        expression = ' & '.join(variables_group)
+        expressions_minimales.append(expression)
+    return ' | '.join(expressions_minimales)
+
+# Exemple d'utilisation
+fonction_logique = input("Entrez votre fonction logique en utilisant les opérateurs logiques (& pour ET, | pour OU, ~ pour NON): ")
+variables = sorted(set([char for char in fonction_logique if char.isalpha()]))
+fonction_minimisee = minimize_karnaugh(variables, fonction_logique)
+if fonction_minimisee:
+    print("Fonction logique minimisée:", fonction_minimisee)
+else:
+    print(":", fonction_logique)
